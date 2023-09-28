@@ -16,7 +16,7 @@ struct NSImageView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         } else {
-            Text("Loading image...")
+            Text("QR will show here when you type in textfield")
         }
     }
 }
