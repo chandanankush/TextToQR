@@ -13,13 +13,16 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
-            TextField("Enter QR String", text: $qrInputtext)
-                .textFieldStyle(RoundedBorderTextFieldStyle()).padding()
-                .onChange(of: qrInputtext) { newValue in
+            
+            HStack {
+                TextField("Enter QR String", text: $qrInputtext)
+                    .textFieldStyle(RoundedBorderTextFieldStyle()).padding()
+                    .onChange(of: qrInputtext) { newValue in
+                        image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
+                    }
+                Button("Render") {
                     image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
                 }
-            Button("Generate") {
-                image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
             }.padding()
             NSImageView(image: image).padding(.bottom)
             Spacer()
