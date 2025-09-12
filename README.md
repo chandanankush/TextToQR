@@ -7,7 +7,7 @@ Simple macOS SwiftUI app to generate QR codes from text using Core Image.
 
 Latest working app file:
 
-[QRCodeGenerator.app.zip](https://github.com/chandanankush/TextToQR/files/14559188/QRCodeGenerator.app.zip)
+
 
 ## Overview
 
