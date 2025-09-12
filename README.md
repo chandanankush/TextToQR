@@ -14,7 +14,8 @@ TextToQR renders a QR code for any text you type. It uses the `CIQRCodeGenerator
 
 ## Features
 
-- Folder-based management: choose a root folder; browse subfolders/files
+- App-managed storage: files saved under Application Support in the app container (no folder selection)
+- Folder-based management within the app’s library; browse subfolders/files
 - Load/save QR texts as files (`.txt`, `.qr`, `.qrtext`)
 - Edit and generate QR without saving; choose to Save or Save As later
 - Live preview as you type (no Render button)
@@ -25,8 +26,8 @@ TextToQR renders a QR code for any text you type. It uses the `CIQRCodeGenerator
 
 - Open `QRCodeGenerator/QRCodeGenerator.xcodeproj` in Xcode (macOS app target).
 - Build and run.
-- Click "Choose Root Folder" to point the app at a directory containing your team's QR text files (supports subfolders).
-- Start typing to generate a QR without saving; click Save or Save As to persist.
+- The app stores QR texts under `Application Support/<bundle id>/QRCodes`.
+- Start typing to generate a QR without saving; click Save or Save As to persist within the app library.
 - Or select a file to load and regenerate its QR; edit and Save to update that file.
 
 See `docs/DEVELOPMENT.md` for detailed setup instructions.

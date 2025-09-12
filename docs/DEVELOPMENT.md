@@ -38,4 +38,4 @@ See `docs/RELEASE.md` for a lightweight release process.
 
 ## Sandbox / Permissions
 
-- The app uses App Sandbox with `com.apple.security.files.user-selected.read-write` so users can choose a folder and save QR text files there.
+- The app uses App Sandbox and saves QR text files inside the app container: `Application Support/<bundle id>/QRCodes`. Users do not select arbitrary folders.

@@ -12,19 +12,27 @@ struct ContentView: View {
     // QR text + image
     @State private var qrInputtext = ""
     @State private var image: NSImage?
+    private let maxQRBytes = 1273 // QR v40-H byte capacity (byte mode)
+    @State private var limitWarning: String? = nil
+    @State private var previousValidText: String = ""
 
-    // File management
+    // File management (app-managed root in Application Support)
     @State private var rootFolderURL: URL?
     @State private var tree: FileNode?
     @State private var selectedFileURL: URL?
     @State private var statusMessage: String = ""
+    // Name sheet (for Save As / Rename without NSSavePanel)
+    @State private var showNameSheet: Bool = false
+    @State private var nameSheetTitle: String = ""
+    @State private var nameField: String = ""
+    private enum NameAction { case saveAs, rename }
+    @State private var pendingAction: NameAction? = nil
 
     var body: some View {
         HStack(spacing: 0) {
             // Sidebar: folder tree and controls
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Button("Choose Root Folder") { chooseRootFolder() }
                     Button("Refresh") { refreshTree() }
                         .disabled(rootFolderURL == nil)
                 }
@@ -46,7 +54,7 @@ struct ContentView: View {
                                         selectedFileURL = node.url
                                         if let txt = FileScanner.readText(from: node.url) {
                                             qrInputtext = txt
-                                            image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
+                                            enforceLimitAndUpdate()
                                         }
                                     }
                                 }
@@ -54,8 +62,8 @@ struct ContentView: View {
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("No root folder selected.")
-                            Text("Click ‘Choose Root Folder’ to browse and manage QR texts.")
+                            Text("Preparing app library…")
+                            Text("Your QR files are saved in the app’s Application Support folder.")
                                 .foregroundColor(.secondary)
                         }
                         .padding()
@@ -77,8 +85,13 @@ struct ContentView: View {
                         .frame(minHeight: 30, maxHeight: 80)
                         .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.2)))
                         .onChange(of: qrInputtext) { _ in
-                            image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
+                            enforceLimitAndUpdate()
                         }
+                    if let warning = limitWarning {
+                        Text(warning)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                 }
                 .padding([.top, .horizontal, .bottom])
 
@@ -102,25 +115,33 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            // Ensure app root exists and load tree
+            self.rootFolderURL = ensureAppRoot()
+            refreshTree()
             // Initial render if any prefilled text
             image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
+            previousValidText = qrInputtext
+        }
+        .sheet(isPresented: $showNameSheet) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(nameSheetTitle).font(.headline)
+                TextField("Filename", text: $nameField)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .frame(minWidth: 360)
+                Text("Allowed extensions: \(Array(FileScanner.allowedExtensions).sorted().joined(separator: ", "))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                HStack {
+                    Spacer()
+                    Button("Cancel") { showNameSheet = false }
+                    Button("Save") { performNameAction() }.keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding(20)
         }
     }
 
     // MARK: - Actions
-
-    private func chooseRootFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        if panel.runModal() == .OK, let url = panel.url {
-            rootFolderURL = url
-            refreshTree()
-            status("Root set to \(url.lastPathComponent)")
-        }
-    }
 
     private func refreshTree() {
         guard let root = rootFolderURL else { return }
@@ -128,22 +149,11 @@ struct ContentView: View {
     }
 
     private func saveAs() {
-        guard let root = rootFolderURL else { return }
-        // Ask for filename
-        let savePanel = NSSavePanel()
-        savePanel.directoryURL = root
-        savePanel.allowedFileTypes = ["qr", "txt", "qrtext"]
-        savePanel.nameFieldStringValue = suggestFileName()
-        if savePanel.runModal() == .OK, let url = savePanel.url {
-            do {
-                try FileScanner.writeText(qrInputtext, to: url)
-                selectedFileURL = url
-                refreshTree()
-                status("Saved \(url.lastPathComponent)")
-            } catch {
-                status("Save failed: \(error.localizedDescription)")
-            }
-        }
+        // Prompt for filename within app library
+        nameSheetTitle = "Save As"
+        nameField = suggestFileName() + ".txt"
+        pendingAction = .saveAs
+        showNameSheet = true
     }
 
     private func saveCurrent() {
@@ -169,22 +179,10 @@ struct ContentView: View {
 
     private func renameCurrent() {
         guard let currentURL = selectedFileURL else { return }
-        let panel = NSSavePanel()
-        panel.directoryURL = currentURL.deletingLastPathComponent()
-        panel.nameFieldStringValue = currentURL.lastPathComponent
-        panel.allowedFileTypes = Array(FileScanner.allowedExtensions)
-        panel.prompt = "Rename"
-        if panel.runModal() == .OK, let newURL = panel.url {
-            guard newURL != currentURL else { return }
-            do {
-                try FileManager.default.moveItem(at: currentURL, to: newURL)
-                selectedFileURL = newURL
-                refreshTree()
-                status("Renamed to \(newURL.lastPathComponent)")
-            } catch {
-                status("Rename failed: \(error.localizedDescription)")
-            }
-        }
+        nameSheetTitle = "Rename"
+        nameField = currentURL.lastPathComponent
+        pendingAction = .rename
+        showNameSheet = true
     }
 
     private func status(_ message: String) {
@@ -201,6 +199,114 @@ struct ContentView: View {
         formatter.timeZone = .current
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         return formatter.string(from: Date())
+    }
+
+    // MARK: - App folder helpers
+
+    private func ensureAppRoot() -> URL? {
+        let fm = FileManager.default
+        let base = (try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+        let bundleID = Bundle.main.bundleIdentifier ?? "TextToQR"
+        guard let baseURL = base else { return nil }
+        let appRoot = baseURL.appendingPathComponent(bundleID, isDirectory: true)
+            .appendingPathComponent("QRCodes", isDirectory: true)
+        do {
+            try fm.createDirectory(at: appRoot, withIntermediateDirectories: true)
+            return appRoot
+        } catch {
+            status("Could not create app folder: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func forceIntoRoot(_ url: URL, root: URL) -> URL {
+        // If user navigates outside the app root in the save panel, force saving under root with chosen filename
+        let standardized = url.standardizedFileURL
+        if standardized.path.hasPrefix(root.standardizedFileURL.path) {
+            return standardized
+        }
+        return root.appendingPathComponent(url.lastPathComponent)
+    }
+
+    // MARK: - Input limit enforcement
+
+    private func asciiByteCount(_ text: String) -> Int? {
+        text.data(using: .ascii)?.count
+    }
+
+    private func truncateToMaxASCIIBytes(_ text: String, max: Int) -> String {
+        var result = ""
+        var count = 0
+        for ch in text {
+            let s = String(ch)
+            guard let bytes = s.data(using: .ascii) else { break }
+            if count + bytes.count > max { break }
+            result.append(ch)
+            count += bytes.count
+        }
+        return result
+    }
+
+    private func enforceLimitAndUpdate() {
+        // Reject non-ASCII and enforce max byte length for current QR encoding settings
+        guard let byteCount = asciiByteCount(qrInputtext) else {
+            limitWarning = "Only ASCII characters are supported."
+            // revert to last valid
+            qrInputtext = previousValidText
+            return
+        }
+        if byteCount > maxQRBytes {
+            // Truncate and warn
+            let truncated = truncateToMaxASCIIBytes(qrInputtext, max: maxQRBytes)
+            qrInputtext = truncated
+            limitWarning = "Exceeded max length of \(maxQRBytes) bytes. Extra text truncated."
+        } else {
+            limitWarning = nil
+            previousValidText = qrInputtext
+        }
+        image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
+    }
+
+    private func sanitizeFilename(_ name: String) -> String {
+        var base = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if base.isEmpty { base = suggestFileName() }
+        // Replace illegal chars
+        base = base.replacingOccurrences(of: "\\s+", with: "_", options: .regularExpression)
+            .replacingOccurrences(of: "[\\\\/:*?\"<>|]", with: "-", options: .regularExpression)
+        return base
+    }
+
+    private func ensureAllowedExtension(for filename: String) -> String {
+        let url = URL(fileURLWithPath: filename)
+        let ext = url.pathExtension.lowercased()
+        if FileScanner.allowedExtensions.contains(ext) { return filename }
+        // default to .txt
+        return url.deletingPathExtension().lastPathComponent + ".txt"
+    }
+
+    private func performNameAction() {
+        guard let root = rootFolderURL, let action = pendingAction else { showNameSheet = false; return }
+        let cleaned = ensureAllowedExtension(for: sanitizeFilename(nameField))
+        let dest = root.appendingPathComponent(cleaned)
+        do {
+            switch action {
+            case .saveAs:
+                try FileScanner.writeText(qrInputtext, to: dest)
+                selectedFileURL = dest
+                status("Saved \(dest.lastPathComponent)")
+            case .rename:
+                if let current = selectedFileURL, current != dest {
+                    try FileManager.default.moveItem(at: current, to: dest)
+                    selectedFileURL = dest
+                    status("Renamed to \(dest.lastPathComponent)")
+                }
+            }
+            refreshTree()
+        } catch {
+            status("Operation failed: \(error.localizedDescription)")
+        }
+        showNameSheet = false
+        pendingAction = nil
     }
 }
 
