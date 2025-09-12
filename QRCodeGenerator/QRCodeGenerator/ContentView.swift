@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import AppKit
 
 struct ContentView: View {
@@ -27,6 +28,8 @@ struct ContentView: View {
     @State private var nameField: String = ""
     private enum NameAction { case saveAs, rename }
     @State private var pendingAction: NameAction? = nil
+    // Delete confirmation
+    @State private var showDeleteConfirm: Bool = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -55,6 +58,18 @@ struct ContentView: View {
                                         if let txt = FileScanner.readText(from: node.url) {
                                             qrInputtext = txt
                                             enforceLimitAndUpdate()
+                                        }
+                                    }
+                                }
+                                .contextMenu {
+                                    if !node.isDirectory {
+                                        Button("Rename…") {
+                                            selectedFileURL = node.url
+                                            renameCurrent()
+                                        }
+                                        Button("Delete", role: .destructive) {
+                                            selectedFileURL = node.url
+                                            showDeleteConfirm = true
                                         }
                                     }
                                 }
@@ -122,6 +137,17 @@ struct ContentView: View {
             image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
             previousValidText = qrInputtext
         }
+        .onReceive(NotificationCenter.default.publisher(for: .LibraryDidChange)) { _ in
+            refreshTree()
+        }
+        .alert("Delete this file?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) { deleteCurrent() }
+            Button("Cancel", role: .cancel) { showDeleteConfirm = false }
+        } message: {
+            if let url = selectedFileURL {
+                Text(url.lastPathComponent)
+            }
+        }
         .sheet(isPresented: $showNameSheet) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(nameSheetTitle).font(.headline)
@@ -183,6 +209,21 @@ struct ContentView: View {
         nameField = currentURL.lastPathComponent
         pendingAction = .rename
         showNameSheet = true
+    }
+
+    private func deleteCurrent() {
+        guard let url = selectedFileURL else { showDeleteConfirm = false; return }
+        do {
+            try FileManager.default.removeItem(at: url)
+            selectedFileURL = nil
+            qrInputtext = ""
+            image = nil
+            refreshTree()
+            status("Deleted")
+        } catch {
+            status("Delete failed: \(error.localizedDescription)")
+        }
+        showDeleteConfirm = false
     }
 
     private func status(_ message: String) {

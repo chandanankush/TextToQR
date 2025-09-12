@@ -18,6 +18,7 @@
 - `QRCodeGenerator.swift`: QR generation, scaling, CI→NS conversion.
 - `NSImageView.swift`: SwiftUI wrapper to render an optional `NSImage`.
 - `FileManagement.swift`: Folder tree scanning and simple read/write helpers.
+- `LibraryTransfer.swift`: Export/import library to a single JSON (`.qrjson`).
 - `Assets.xcassets`: App icons and colors.
 - `QRCodeGenerator.entitlements`: Sandbox settings for the app.
 
@@ -38,4 +39,5 @@ See `docs/RELEASE.md` for a lightweight release process.
 
 ## Sandbox / Permissions
 
-- The app uses App Sandbox and saves QR text files inside the app container: `Application Support/<bundle id>/QRCodes`. Users do not select arbitrary folders.
+- The app uses App Sandbox and saves QR text files inside the app container: `Application Support/<bundle id>/QRCodes`. Users do not select arbitrary folders for normal saving.
+- Export/Import uses user-selected read/write entitlement to let you pick a single `.qrjson` file location.

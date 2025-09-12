@@ -14,5 +14,11 @@ struct QRCodeGeneratorApp: App {
             ContentView()
                 .frame(minWidth: 800, minHeight: 600) // wider layout for sidebar + editor
             }.windowStyle(HiddenTitleBarWindowStyle()) // optional: hide the window title bar
+        .commands {
+            CommandGroup(after: .importExport) {
+                Button("Import Library…") { LibraryTransfer.importLibrary() }
+                Button("Export Library…") { LibraryTransfer.exportLibrary() }
+            }
+        }
     }
 }
