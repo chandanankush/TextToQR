@@ -17,6 +17,7 @@
 - `ContentView.swift`: UI, input handling, and generation triggers.
 - `QRCodeGenerator.swift`: QR generation, scaling, CI→NS conversion.
 - `NSImageView.swift`: SwiftUI wrapper to render an optional `NSImage`.
+- `FileManagement.swift`: Folder tree scanning and simple read/write helpers.
 - `Assets.xcassets`: App icons and colors.
 - `QRCodeGenerator.entitlements`: Sandbox settings for the app.
 
@@ -35,3 +36,6 @@
 
 See `docs/RELEASE.md` for a lightweight release process.
 
+## Sandbox / Permissions
+
+- The app uses App Sandbox with `com.apple.security.files.user-selected.read-write` so users can choose a folder and save QR text files there.

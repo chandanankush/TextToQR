@@ -11,7 +11,8 @@ import SwiftUI
 struct QRCodeGeneratorApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView().frame(minWidth: 400, maxWidth: 400, minHeight: 600, maxHeight: 600) // set a fixed window size
+            ContentView()
+                .frame(minWidth: 800, minHeight: 600) // wider layout for sidebar + editor
             }.windowStyle(HiddenTitleBarWindowStyle()) // optional: hide the window title bar
     }
 }

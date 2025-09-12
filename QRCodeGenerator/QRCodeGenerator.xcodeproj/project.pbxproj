@@ -13,6 +13,7 @@
 		AC0148C42A0A9574005E943A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AC0148C32A0A9574005E943A /* Preview Assets.xcassets */; };
 		AC0148CC2A0A9647005E943A /* QRCodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0148CB2A0A9647005E943A /* QRCodeGenerator.swift */; };
 		AC0148CE2A0A9CD6005E943A /* NSImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0148CD2A0A9CD6005E943A /* NSImageView.swift */; };
+		B5B620632E74322E00CC35D1 /* FileManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B620622E74322E00CC35D1 /* FileManagement.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 		AC0148C52A0A9574005E943A /* QRCodeGenerator.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QRCodeGenerator.entitlements; sourceTree = "<group>"; };
 		AC0148CB2A0A9647005E943A /* QRCodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeGenerator.swift; sourceTree = "<group>"; };
 		AC0148CD2A0A9CD6005E943A /* NSImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSImageView.swift; sourceTree = "<group>"; };
+		B5B620622E74322E00CC35D1 /* FileManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagement.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,6 +58,7 @@
 		AC0148BB2A0A9573005E943A /* QRCodeGenerator */ = {
 			isa = PBXGroup;
 			children = (
+				B5B620622E74322E00CC35D1 /* FileManagement.swift */,
 				AC0148BC2A0A9573005E943A /* QRCodeGeneratorApp.swift */,
 				AC0148BE2A0A9573005E943A /* ContentView.swift */,
 				AC0148C02A0A9574005E943A /* Assets.xcassets */,
@@ -148,6 +151,7 @@
 				AC0148BF2A0A9573005E943A /* ContentView.swift in Sources */,
 				AC0148CC2A0A9647005E943A /* QRCodeGenerator.swift in Sources */,
 				AC0148BD2A0A9573005E943A /* QRCodeGeneratorApp.swift in Sources */,
+				B5B620632E74322E00CC35D1 /* FileManagement.swift in Sources */,
 				AC0148CE2A0A9CD6005E943A /* NSImageView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
