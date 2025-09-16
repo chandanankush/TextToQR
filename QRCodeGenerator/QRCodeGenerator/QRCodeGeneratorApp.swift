@@ -18,6 +18,8 @@ struct QRCodeGeneratorApp: App {
             CommandGroup(after: .importExport) {
                 Button("Import Library…") { LibraryTransfer.importLibrary() }
                 Button("Export Library…") { LibraryTransfer.exportLibrary() }
+                Divider()
+                Button("Clear Library…", role: .destructive) { LibraryTransfer.clearLibrary() }
             }
         }
     }

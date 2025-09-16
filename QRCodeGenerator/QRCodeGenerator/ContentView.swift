@@ -20,13 +20,15 @@ struct ContentView: View {
     // File management (app-managed root in Application Support)
     @State private var rootFolderURL: URL?
     @State private var tree: FileNode?
+    @State private var activeFolderURL: URL?
+    @State private var selectedDirectoryURL: URL?
     @State private var selectedFileURL: URL?
     @State private var statusMessage: String = ""
     // Name sheet (for Save As / Rename without NSSavePanel)
     @State private var showNameSheet: Bool = false
     @State private var nameSheetTitle: String = ""
     @State private var nameField: String = ""
-    private enum NameAction { case saveAs, rename }
+    private enum NameAction { case saveAs, rename, newFolder }
     @State private var pendingAction: NameAction? = nil
     // Delete confirmation
     @State private var showDeleteConfirm: Bool = false
@@ -38,6 +40,8 @@ struct ContentView: View {
                 HStack {
                     Button("Refresh") { refreshTree() }
                         .disabled(rootFolderURL == nil)
+                    Button("New Folder") { startNewFolder() }
+                        .disabled(rootFolderURL == nil || activeFolderURL == nil)
                 }
                 .padding([.top, .horizontal])
 
@@ -53,16 +57,29 @@ struct ContentView: View {
                                 }
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    if !node.isDirectory {
+                                    if node.isDirectory {
+                                        selectedDirectoryURL = node.url
+                                        activeFolderURL = node.url
+                                    } else {
                                         selectedFileURL = node.url
                                         if let txt = FileScanner.readText(from: node.url) {
                                             qrInputtext = txt
                                             enforceLimitAndUpdate()
                                         }
+                                        selectedDirectoryURL = node.url.deletingLastPathComponent()
+                                        activeFolderURL = selectedDirectoryURL
                                     }
                                 }
                                 .contextMenu {
-                                    if !node.isDirectory {
+                                    if node.isDirectory {
+                                        Button("Set as Save Target") {
+                                            selectedDirectoryURL = node.url
+                                            activeFolderURL = node.url
+                                        }
+                                        Button("New Folder Here") {
+                                            startNewFolder(at: node.url)
+                                        }
+                                    } else {
                                         Button("Rename…") {
                                             selectedFileURL = node.url
                                             renameCurrent()
@@ -73,6 +90,9 @@ struct ContentView: View {
                                         }
                                     }
                                 }
+                                .listRowBackground(
+                                    highlightBackground(for: node)
+                                )
                             }
                         }
                     } else {
@@ -114,9 +134,12 @@ struct ContentView: View {
                     Button("New") { newUnsaved() }
                     Button("Save") { saveCurrent() }.disabled(qrInputtext.isEmpty)
                     Button("Save As") { saveAs() }.disabled(qrInputtext.isEmpty || rootFolderURL == nil)
-                    Button("Rename") { renameCurrent() }.disabled(selectedFileURL == nil)
+                    Button("Rename File") { renameCurrent() }.disabled(selectedFileURL == nil)
                     if let url = selectedFileURL {
                         Text(url.lastPathComponent).font(.caption).foregroundColor(.secondary)
+                    }
+                    if let folderLabel = currentFolderLabel() {
+                        Text(folderLabel).font(.caption).foregroundColor(.secondary)
                     }
                     Spacer()
                     Text(statusMessage).font(.caption).foregroundColor(.secondary)
@@ -133,12 +156,19 @@ struct ContentView: View {
             // Ensure app root exists and load tree
             self.rootFolderURL = ensureAppRoot()
             refreshTree()
+            if let root = self.rootFolderURL {
+                if activeFolderURL == nil { activeFolderURL = root }
+                if selectedDirectoryURL == nil { selectedDirectoryURL = root }
+            }
             // Initial render if any prefilled text
             image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
             previousValidText = qrInputtext
         }
         .onReceive(NotificationCenter.default.publisher(for: .LibraryDidChange)) { _ in
             refreshTree()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .LibraryDidClear)) { _ in
+            handleLibraryCleared()
         }
         .alert("Delete this file?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) { deleteCurrent() }
@@ -151,16 +181,42 @@ struct ContentView: View {
         .sheet(isPresented: $showNameSheet) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(nameSheetTitle).font(.headline)
-                TextField("Filename", text: $nameField)
+                TextField(pendingAction == .newFolder ? "Folder Name" : "Filename", text: $nameField)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .frame(minWidth: 360)
-                Text("Allowed extensions: \(Array(FileScanner.allowedExtensions).sorted().joined(separator: ", "))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if let action = pendingAction {
+                    switch action {
+                    case .saveAs:
+                        if let path = folderPathString() {
+                            Text("Target folder: \(path)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Text("Allowed extensions: \(Array(FileScanner.allowedExtensions).sorted().joined(separator: ", "))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .rename:
+                        if let path = folderPathString() {
+                            Text("Folder: \(path)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Text("Allowed extensions: \(Array(FileScanner.allowedExtensions).sorted().joined(separator: ", "))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .newFolder:
+                        if let path = folderPathString() {
+                            Text("Parent folder: \(path)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
                 HStack {
                     Spacer()
                     Button("Cancel") { showNameSheet = false }
-                    Button("Save") { performNameAction() }.keyboardShortcut(.defaultAction)
+                    Button(pendingAction == .newFolder ? "Create" : "Save") { performNameAction() }
+                        .keyboardShortcut(.defaultAction)
                 }
             }
             .padding(20)
@@ -172,6 +228,21 @@ struct ContentView: View {
     private func refreshTree() {
         guard let root = rootFolderURL else { return }
         tree = FileScanner.buildTree(at: root)
+        let fm = FileManager.default
+        if let folder = activeFolderURL {
+            if !fm.fileExists(atPath: folder.path) {
+                activeFolderURL = root
+            }
+        } else {
+            activeFolderURL = root
+        }
+        if let directory = selectedDirectoryURL {
+            if !fm.fileExists(atPath: directory.path) {
+                selectedDirectoryURL = activeFolderURL ?? root
+            }
+        } else {
+            selectedDirectoryURL = activeFolderURL ?? root
+        }
     }
 
     private func saveAs() {
@@ -179,6 +250,9 @@ struct ContentView: View {
         nameSheetTitle = "Save As"
         nameField = suggestFileName() + ".txt"
         pendingAction = .saveAs
+        if activeFolderURL == nil {
+            activeFolderURL = selectedDirectoryURL ?? rootFolderURL
+        }
         showNameSheet = true
     }
 
@@ -187,6 +261,8 @@ struct ContentView: View {
             do {
                 try FileScanner.writeText(qrInputtext, to: url)
                 status("Saved \(url.lastPathComponent)")
+                selectedDirectoryURL = url.deletingLastPathComponent()
+                activeFolderURL = selectedDirectoryURL
                 refreshTree()
             } catch {
                 status("Save failed: \(error.localizedDescription)")
@@ -208,6 +284,27 @@ struct ContentView: View {
         nameSheetTitle = "Rename"
         nameField = currentURL.lastPathComponent
         pendingAction = .rename
+        activeFolderURL = currentURL.deletingLastPathComponent()
+        selectedDirectoryURL = activeFolderURL
+        showNameSheet = true
+    }
+
+    private func startNewFolder(at parent: URL? = nil) {
+        guard let root = rootFolderURL else { return }
+        if let parent = parent {
+            activeFolderURL = parent
+            selectedDirectoryURL = parent
+        } else if activeFolderURL == nil {
+            if let selected = selectedDirectoryURL {
+                activeFolderURL = selected
+            } else {
+                activeFolderURL = root
+                selectedDirectoryURL = root
+            }
+        }
+        nameSheetTitle = "New Folder"
+        nameField = "New Folder"
+        pendingAction = .newFolder
         showNameSheet = true
     }
 
@@ -218,6 +315,8 @@ struct ContentView: View {
             selectedFileURL = nil
             qrInputtext = ""
             image = nil
+            selectedDirectoryURL = url.deletingLastPathComponent()
+            activeFolderURL = selectedDirectoryURL
             refreshTree()
             status("Deleted")
         } catch {
@@ -307,40 +406,45 @@ struct ContentView: View {
         }
         image = QRCodeGenerator.getQRImageUsingNew(qrcode: qrInputtext)
     }
-
-    private func sanitizeFilename(_ name: String) -> String {
-        var base = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if base.isEmpty { base = suggestFileName() }
-        // Replace illegal chars
-        base = base.replacingOccurrences(of: "\\s+", with: "_", options: .regularExpression)
-            .replacingOccurrences(of: "[\\\\/:*?\"<>|]", with: "-", options: .regularExpression)
-        return base
-    }
-
-    private func ensureAllowedExtension(for filename: String) -> String {
-        let url = URL(fileURLWithPath: filename)
-        let ext = url.pathExtension.lowercased()
-        if FileScanner.allowedExtensions.contains(ext) { return filename }
-        // default to .txt
-        return url.deletingPathExtension().lastPathComponent + ".txt"
-    }
-
     private func performNameAction() {
         guard let root = rootFolderURL, let action = pendingAction else { showNameSheet = false; return }
-        let cleaned = ensureAllowedExtension(for: sanitizeFilename(nameField))
-        let dest = root.appendingPathComponent(cleaned)
+        let fm = FileManager.default
         do {
             switch action {
             case .saveAs:
-                try FileScanner.writeText(qrInputtext, to: dest)
-                selectedFileURL = dest
-                status("Saved \(dest.lastPathComponent)")
+                let filename = FileScanner.sanitizedFileName(nameField, fallback: suggestFileName())
+                let folder = activeFolderURL ?? root
+                let destination = folder.appendingPathComponent(filename)
+                try FileScanner.writeText(qrInputtext, to: destination)
+                selectedFileURL = destination
+                selectedDirectoryURL = folder
+                activeFolderURL = folder
+                status("Saved \(destination.lastPathComponent)")
             case .rename:
-                if let current = selectedFileURL, current != dest {
-                    try FileManager.default.moveItem(at: current, to: dest)
-                    selectedFileURL = dest
-                    status("Renamed to \(dest.lastPathComponent)")
+                guard let current = selectedFileURL else { break }
+                let filename = FileScanner.sanitizedFileName(nameField, fallback: current.lastPathComponent)
+                let destination = current.deletingLastPathComponent().appendingPathComponent(filename)
+                if current != destination {
+                    try fm.moveItem(at: current, to: destination)
+                    selectedFileURL = destination
+                    selectedDirectoryURL = destination.deletingLastPathComponent()
+                    activeFolderURL = selectedDirectoryURL
+                    status("Renamed to \(destination.lastPathComponent)")
                 }
+            case .newFolder:
+                let sanitized = FileScanner.sanitizeFolderComponent(nameField)
+                guard !sanitized.isEmpty else {
+                    status("Folder name can't be empty")
+                    showNameSheet = false
+                    pendingAction = nil
+                    return
+                }
+                let parent = activeFolderURL ?? root
+                let folderURL = uniqueFolderURL(parent: parent, desiredName: sanitized)
+                try fm.createDirectory(at: folderURL, withIntermediateDirectories: true)
+                selectedDirectoryURL = folderURL
+                activeFolderURL = folderURL
+                status("Created folder \(folderURL.lastPathComponent)")
             }
             refreshTree()
         } catch {
@@ -348,6 +452,63 @@ struct ContentView: View {
         }
         showNameSheet = false
         pendingAction = nil
+    }
+
+    private func folderPathString() -> String? {
+        guard let root = rootFolderURL, let folder = activeFolderURL else { return nil }
+        let relative = folderRelativePath(folder, root: root)
+        return relative.isEmpty ? "Root" : relative
+    }
+
+    private func currentFolderLabel() -> String? {
+        guard let path = folderPathString() else { return nil }
+        return "Folder: \(path)"
+    }
+
+    private func folderRelativePath(_ folder: URL, root: URL) -> String {
+        let folderPath = folder.standardizedFileURL.path
+        let rootPath = root.standardizedFileURL.path
+        if folderPath == rootPath { return "" }
+        if folderPath.hasPrefix(rootPath) {
+            let dropIndex = folderPath.index(folderPath.startIndex, offsetBy: rootPath.count)
+            var remainder = String(folderPath[dropIndex...])
+            if remainder.hasPrefix("/") {
+                remainder.removeFirst()
+            }
+            return remainder
+        }
+        return folder.lastPathComponent
+    }
+
+    private func highlightBackground(for node: FileNode) -> Color {
+        if node.isDirectory {
+            return selectedDirectoryURL == node.url ? Color.accentColor.opacity(0.18) : Color.clear
+        } else {
+            return selectedFileURL == node.url ? Color.accentColor.opacity(0.18) : Color.clear
+        }
+    }
+
+    private func uniqueFolderURL(parent: URL, desiredName: String) -> URL {
+        let fm = FileManager.default
+        var candidate = parent.appendingPathComponent(desiredName, isDirectory: true)
+        var index = 1
+        while fm.fileExists(atPath: candidate.path) {
+            candidate = parent.appendingPathComponent("\(desiredName)-\(index)", isDirectory: true)
+            index += 1
+        }
+        return candidate
+    }
+
+    private func handleLibraryCleared() {
+        selectedFileURL = nil
+        qrInputtext = ""
+        image = nil
+        if let root = rootFolderURL {
+            activeFolderURL = root
+            selectedDirectoryURL = root
+        }
+        refreshTree()
+        status("Cleared library")
     }
 }
 

@@ -16,9 +16,9 @@ TextToQR renders a QR code for any text you type. It uses the `CIQRCodeGenerator
 ## Features
 
 - App-managed storage: files saved under Application Support in the app container (no folder selection)
-- Folder-based management within the app’s library; browse subfolders/files
+- Folder-based management within the app’s library; create subfolders, browse, and save into them
 - Load/save QR texts as files (`.txt`, `.qr`, `.qrtext`)
-- Export/Import the entire library as a single `.csv` file (File menu)
+- Export/Import the entire library as a single `.csv` file and clear the saved library from the File menu
 - Edit and generate QR without saving; choose to Save or Save As later
 - Live preview as you type (no Render button)
 - Core Image–based QR generation with error correction
@@ -32,7 +32,7 @@ TextToQR renders a QR code for any text you type. It uses the `CIQRCodeGenerator
 - Start typing to generate a QR without saving; click Save or Save As to persist within the app library.
 - Or select a file to load and regenerate its QR; edit and Save to update that file.
 - Use File → Export Library… to save a snapshot (`.csv`), and File → Import Library… to merge from a snapshot.
-  - CSV schema (simple): header `filename,text,order`. Each row has the filename only (no folders), the QR text, and a serial number for readability. Fields are quoted and quotes inside a field are doubled.
+  - CSV schema: header `folder,filename,text,order`. `folder` is a relative path inside the library (blank for the root). Text is stored with literal `\n`, and `order` preserves the display ordering.
 
 See `docs/DEVELOPMENT.md` for detailed setup instructions.
 
