@@ -7,7 +7,8 @@
 ## Nothing appears in the preview
 
 - Ensure the input is not empty — empty input returns `nil` (placeholder text remains).
-- Try pressing the Render button if live updates seem out of sync.
+- Preview updates as you type; there is no Render button. Try a small ASCII value such as `https://example.com`.
+- Non-ASCII input is rejected; text beyond 1,273 bytes is truncated.
 
 ## Build issues
 

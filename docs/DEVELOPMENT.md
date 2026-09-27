@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- macOS with Xcode (14 or newer recommended)
+- macOS 13.3+ (the project deployment target), with Xcode and the macOS SDK
 - Swift toolchain bundled with Xcode
 
 ## Open and Run
@@ -30,6 +30,7 @@
 
 ## Local Tweaks
 
+- The current UI accepts ASCII only and caps text at 1,273 bytes; preserve/document these limits when proposing changes.
 - Adjust output size: Change the scale calculation in `QRCodeGenerator.generateQRCode`.
 - Error correction level: Pass `"L"`, `"M"`, `"Q"`, or `"H"`.
 

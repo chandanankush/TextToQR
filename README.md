@@ -1,70 +1,56 @@
 # TextToQR
 
-Simple macOS SwiftUI app to generate QR codes from text using Core Image.
+Turn text into QR codes on your Mac and keep reusable entries in a local folder library. TextToQR is a small SwiftUI utility for people who repeatedly generate codes from saved snippets, with CSV import/export for the text library.
 
-<img width="1144" height="895" alt="Screenshot 2025-09-12 at 4 54 44 PM" src="https://github.com/user-attachments/assets/80334ce0-e637-4d09-bfec-590ca485e144" />
+[Build from source](#build-from-source) · [Existing download](https://github.com/user-attachments/files/22369243/QRCodeGenerator.zip) · [Questions and feedback](https://github.com/chandanankush/TextToQR/discussions)
 
+![Actual TextToQR editor using example text in an isolated demo library](docs/assets/texttoqr-demo.png)
 
-## Latest Build
-[QRCodeGenerator.zip](https://github.com/user-attachments/files/22369243/QRCodeGenerator.zip)
+*Actual editor compiled unchanged in a local harness with a separate demo library. The QR contains invented public example text. [Short live-preview walkthrough](docs/assets/texttoqr-demo.gif) uses two captured states with condensed timing.*
 
+## What you can do
 
+- Type ASCII text and see a QR preview immediately, without saving.
+- Save text entries (`.txt`, `.qr`, `.qrtext`) in app-managed folders and reopen them later.
+- Create subfolders and rename saved entries.
+- Export or import the text library as CSV. This exports text, not QR image files.
 
-## Overview
+## Build from source
 
-TextToQR renders a QR code for any text you type. It uses the `CIQRCodeGenerator` Core Image filter with error correction level "H", scales the image to 300×300, and displays it as an `NSImage` inside a SwiftUI view.
+The project targets **macOS 13.3+**. You need Xcode with the macOS SDK; the current source is the authoritative version.
 
-## Features
+```sh
+git clone https://github.com/chandanankush/TextToQR.git
+cd TextToQR
+open QRCodeGenerator/QRCodeGenerator.xcodeproj
+```
 
-- App-managed storage: files saved under Application Support in the app container (no folder selection)
-- Folder-based management within the app’s library; create subfolders, browse, and save into them
-- Load/save QR texts as files (`.txt`, `.qr`, `.qrtext`)
-- Export/Import the entire library as a single `.csv` file and clear the saved library from the File menu
-- Edit and generate QR without saving; choose to Save or Save As later
-- Live preview as you type (no Render button)
-- Core Image–based QR generation with error correction
-- Fixed-size window for a focused utility experience
+Select **QRCodeGenerator** and **My Mac**, then build and run. Choose a signing team if required. See the [development guide](docs/DEVELOPMENT.md) for source layout and sandbox details.
 
-## Quick Start
+The [existing ZIP download](https://github.com/user-attachments/files/22369243/QRCodeGenerator.zip) is an unversioned archive linked by the earlier README, not a versioned GitHub Release. It has not been checked for source parity, signing, or notarization during this documentation work. See [release preparation](docs/RELEASE.md) for distribution steps.
 
-- Open `QRCodeGenerator/QRCodeGenerator.xcodeproj` in Xcode (macOS app target).
-- Build and run.
-- The app stores QR texts under `Application Support/<bundle id>/QRCodes`.
-- Start typing to generate a QR without saving; click Save or Save As to persist within the app library.
-- Or select a file to load and regenerate its QR; edit and Save to update that file.
-- Use File → Export Library… to save a snapshot (`.csv`), and File → Import Library… to merge from a snapshot.
-  - CSV schema: header `folder,filename,text,order`. `folder` is a relative path inside the library (blank for the root). Text is stored with literal `\n`, and `order` preserves the display ordering.
+## Use it
 
-See `docs/DEVELOPMENT.md` for detailed setup instructions.
+1. Type `https://example.com` in the editor. The QR preview updates as you type.
+2. Choose **Save** or **Save As**, then enter a filename to keep the text in the app library.
+3. Select a saved file to regenerate its QR; edit and **Save** to update it.
+4. Use **File → Export Library…** to back up the text library, or **Import Library…** to merge a CSV snapshot.
 
-## Architecture
+Entries live under `Application Support/<bundle id>/QRCodes` inside the app container. Normal saving does not let you choose an arbitrary folder. CSV uses `folder,filename,text,order`: folders are relative to the library root and multiline text uses literal `\n`. Keep a backup before importing or clearing the library.
 
-- `QRCodeGeneratorApp` initializes the main window and hosts `ContentView`.
-- `ContentView` manages input state and triggers QR generation.
-- `QRCodeGenerator` encapsulates QR creation, scaling, and CI→NSImage conversion.
-- `NSImageView` (SwiftUI view) renders an optional `NSImage` or a placeholder.
+## Limitations
 
-More details in `docs/ARCHITECTURE.md`.
+- **ASCII only.** The UI rejects non-ASCII text and truncates input beyond **1,273 bytes**.
+- QR generation uses Core Image with correction level **H** and a roughly 300×300 preview. Size/correction controls and image export/copy are not currently exposed in the UI.
+- A preview appearing does not guarantee every scanner can decode every payload. The repository has no automated test suite.
+- Library files and CSV snapshots can contain sensitive text. Use invented values in screenshots and bug reports. **Clear Library…** removes the saved library; export a backup first.
 
-## Roadmap Ideas
+## Support and contribution
 
-- Export/copy/save QR image
-- Adjustable size and error correction level (L/M/Q/H)
-- Input validation and better empty-state UX
-- Crisper scaling via `CIContext` + `CGImage` with no interpolation
+Ask setup questions in [Discussions](https://github.com/chandanankush/TextToQR/discussions), starting with the [welcome thread](https://github.com/chandanankush/TextToQR/discussions/1). [Report reproducible problems](https://github.com/chandanankush/TextToQR/issues/new/choose) with sanitized input, macOS/Xcode version, and commit. See [troubleshooting](docs/TROUBLESHOOTING.md).
 
-## Contributing
-
-Contributions are welcome! Please read `CONTRIBUTING.md` and open an issue to discuss substantial changes.
-
-## Troubleshooting
-
-Common fixes and tips are in `docs/TROUBLESHOOTING.md`.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and browse [good first issues](https://github.com/chandanankush/TextToQR/labels/good%20first%20issue) or [testing requests](https://github.com/chandanankush/TextToQR/labels/help%20wanted). Technical details and future ideas remain in [architecture](docs/ARCHITECTURE.md) and [development](docs/DEVELOPMENT.md).
 
 ## License
 
-This project is licensed under the MIT License. See `LICENSE` for details.
-
-## Links
-
-- Repo: https://github.com/chandanankush/TextToQR
+[GNU General Public License, version 3](LICENSE), as supplied by the existing license file.

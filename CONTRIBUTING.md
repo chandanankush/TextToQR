@@ -4,7 +4,8 @@ Thanks for your interest in improving TextToQR! Here’s how to help:
 
 ## Ways to Contribute
 
-- Report bugs or request features via GitHub Issues.
+- Ask setup questions in [Discussions](https://github.com/chandanankush/TextToQR/discussions); report reproducible bugs or scoped features via Issues.
+- Browse [good first issues](https://github.com/chandanankush/TextToQR/labels/good%20first%20issue) and [help wanted](https://github.com/chandanankush/TextToQR/labels/help%20wanted); comment before starting.
 - Submit small, focused pull requests.
 - Improve docs and examples.
 
@@ -16,7 +17,8 @@ Thanks for your interest in improving TextToQR! Here’s how to help:
 
 ## Development
 
-- See `docs/DEVELOPMENT.md` for setup and local workflows.
+- See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup and local workflows.
+- Use a separate demo library/test account and invented ASCII input for manual tests. Never import, clear, or overwrite a personal library just to validate a change.
 
 ## Code of Conduct
 

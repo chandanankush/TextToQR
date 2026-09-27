@@ -30,10 +30,14 @@ This document outlines the structure and data flow of the TextToQR macOS app.
 
 ## Data Flow
 
-User selects a root folder → sidebar lists folders/files → selecting a file loads its text → `@State qrInputtext` updates → `onChange` regenerates QR → Save/New write to disk → sidebar refreshes.
+App initializes its managed Application Support root → sidebar lists folders/files → selecting a file loads its text → `@State qrInputtext` updates → `onChange` regenerates QR → Save/New write to disk → sidebar refreshes.
 
 ## Notes and Tradeoffs
 
 - Scaling: The CI filter emits a small image. The current approach scales via an affine transform for simplicity. For the sharpest edges, consider rendering to a `CGImage` using a `CIContext` with no interpolation and drawing into an exact pixel buffer size.
 - Error correction: Default is `H` (high). Making this adjustable is straightforward via a UI control bound to `generateQRCode`’s `quality` parameter.
 - Naming: `NSImageView` (SwiftUI) can be mistaken for AppKit’s class. Consider renaming to `QRImageView` to avoid confusion.
+
+## Historical roadmap ideas
+
+The earlier README proposed image export/copy, adjustable QR size/correction level, improved validation/empty states, and sharper scaling. These are ideas, not implemented capabilities or verified bugs; discuss scope before starting.
